@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,7 +13,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Configuración de seguridad Spring Security 6 para Global Frío.
- * Implementa seguridad stateless, habilitación de H2 Console, Swagger UI
+ * Implementa seguridad stateless, habilitación de Swagger UI
  * y rutas públicas conforme a RF-SEM01-01 y RF-SEM05-02.
  */
 @Configuration
@@ -32,7 +31,6 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -42,7 +40,6 @@ public class SecurityConfig {
                                 "/api/cotizador/**",
                                 "/api/contenido/**",
                                 "/api/auth/**",
-                                "/h2-console/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",

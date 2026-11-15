@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Semana 11: el catálogo se entrega por páginas (Pageable) con la metadata que necesita Angular.
  */
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("sqlserver")
 class CatalogoPaginadoTest {
 
     @Autowired

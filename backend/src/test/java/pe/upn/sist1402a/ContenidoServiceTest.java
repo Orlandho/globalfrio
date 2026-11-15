@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * El contenido de la página (Servicios, Trabajos y Mantenimiento) se lee de la base de datos.
  */
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("sqlserver")
 class ContenidoServiceTest {
 
     @Autowired
