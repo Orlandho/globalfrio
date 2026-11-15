@@ -1,0 +1,73 @@
+# Variante universitaria: Compose v2.29.2 / Engine 27.2.0 (objetivo de compatibilidad).
+# Conserva los mismos Dockerfiles, SQL, servicios y volumen que compose.yaml.
+# Los nombres explícitos permiten docker save/load para la sustentación sin Internet.
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configura MYSQL_ROOT_PASSWORD en .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-globalfrio_db}
+      MYSQL_USER: ${MYSQL_USER:-globalfrio_backend}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Configura MYSQL_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/mysql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/mysql/02_data.sql:/docker-entrypoint-initdb.d/02_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP -h 127.0.0.1 -u \"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -Nse 'SELECT COUNT(*) FROM item_mantenimiento'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  backend:
+    image: globalfrio-backend:universidad
+    build:
+      context: ./backend
+    environment: &backend_env
+      SPRING_PROFILES_ACTIVE: mysql
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-globalfrio_db}?sslMode=DISABLED&allowPublicKeyRetrieval=true&connectionTimeZone=UTC
+      DB_USUARIO: ${MYSQL_USER:-globalfrio_backend}
+      DB_CLAVE: ${MYSQL_PASSWORD:?Configura MYSQL_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/api/cotizador/catalogo"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+
+  frontend:
+    image: globalfrio-frontend:universidad
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/api/saludo"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  pruebas:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      target: build
+    environment: *backend_env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: ["mvn", "-B", "test"]
+
+volumes:
+  mysql_data:
