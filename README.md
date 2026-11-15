@@ -70,15 +70,38 @@ Para garantizar la autonomía modular y el cumplimiento de la lista blanca técn
 
 ### 3.1. Arranque completo con Docker Compose (recomendado)
 
-Requiere Docker Desktop con contenedores Linux o Docker Engine con Compose v2.
+Requiere Docker Desktop con contenedores Linux o Docker Engine con Docker Compose v2. Hay dos configuraciones para distintos entornos, con el mismo código, esquema MySQL, credenciales y puertos:
+
+| Configuración | Cuándo utilizarla | Referencia |
+|---|---|---|
+| `compose.yaml` | Computadora personal, desarrollo diario, actualización de dependencias y pruebas habituales. | Docker y Compose actualizados. |
+| `compose.legacy.yaml` | Computadoras de la universidad, laboratorio, sustentación o contingencia en un equipo con Docker de 2024. | Docker Desktop 4.34.0 / Engine 27.2.0 / Compose 2.29.2 (objetivo de compatibilidad). |
+
+La variante universitaria no obliga a instalar Docker antiguo: también se puede usar con versiones modernas. No se considera compatible con Compose v1 ni con motores anteriores sin pruebas específicas. No se recomienda degradar Docker en equipos personales ni exponer esta configuración de desarrollo a Internet. [Referencia oficial de versiones](https://docs.docker.com/desktop/release-notes/#4340).
 
 Copia `.env.example` a `.env` (PowerShell: `Copy-Item .env.example .env`; Linux/macOS: `cp .env.example .env`). Edita `.env` y asigna contraseñas fuertes y distintas a `MYSQL_ROOT_PASSWORD` y `MYSQL_PASSWORD`.
+
+**Computadora personal (desarrollo):**
 
 ```bash
 docker compose config --quiet
 docker compose up -d --build --wait
 docker compose ps
 ```
+
+**Computadora de la universidad (laboratorio o sustentación):**
+
+Comprueba primero las versiones y que Docker use contenedores Linux.
+
+```powershell
+docker version
+docker compose version
+docker compose -f compose.legacy.yaml config --quiet
+docker compose -f compose.legacy.yaml up -d --build
+docker compose -f compose.legacy.yaml ps
+```
+
+Espera hasta ver los tres servicios saludables (`healthy`). Si hay errores, ejecuta `docker compose -f compose.legacy.yaml logs --tail 100`. Las dos variantes conservan los mismos endpoints:
 
 - Angular: http://localhost:4200 (proxy /api del mismo origen).
 - Backend: http://localhost:8080/api/saludo y http://localhost:8080/swagger-ui/index.html.
@@ -87,7 +110,40 @@ docker compose ps
 
 `docker compose down` conserva el volumen. **No uses `down -v` sobre datos de trabajo**. Los scripts de `database/mysql/` se aplican solo en un volumen nuevo. Hibernate valida el esquema. No se trasladan automáticamente datos de SQL Server.
 
+#### Cambio de configuración y contingencia sin Internet
+
+Desde la misma carpeta y con el mismo nombre de proyecto Compose, ambas variantes comparten el volumen `mysql_data`. No las ejecutes simultáneamente sobre los mismos puertos. Detén la configuración activa con `docker compose down` o `docker compose -f compose.legacy.yaml down` antes de cambiar; nunca añadas `-v` a esos comandos si quieres conservar datos.
+
+Para preparar una demostración sin conexión, en tu computadora personal con Internet, desde la raíz y con las credenciales de .env configuradas:
+
+```powershell
+docker compose -f compose.legacy.yaml pull mysql
+docker compose -f compose.legacy.yaml build backend frontend
+docker image save -o globalfrio-universidad.tar mysql:8.4 globalfrio-backend:universidad globalfrio-frontend:universidad
+```
+
+Lleva el archivo tar y una copia del repositorio en USB (sin contraseñas personales). Las imágenes deben corresponder al sistema Linux y arquitectura del equipo destino (habitualmente amd64). En la universidad crea un .env propio, copia el tar a la raíz y ejecuta:
+
+```powershell
+docker image load -i globalfrio-universidad.tar
+docker compose -f compose.legacy.yaml up -d --no-build --pull never
+docker compose -f compose.legacy.yaml ps
+```
+
+Las imágenes no incluyen las cotizaciones ya guardadas: para una base nueva se usan los scripts SQL del repositorio. Comprueba este procedimiento antes de la sustentación y conserva el volumen o haz un respaldo aparte si necesitas datos de trabajo. No guardes el tar en Git ni publiques credenciales.
+
 ### 3.2. Pruebas de integración (MySQL real)
+
+El workflow de GitHub Actions prueba ambas configuraciones por separado: herramientas modernas del runner y versiones universitarias fijadas (Engine 27.2.0 / Compose 2.29.2 / Buildx 0.16.2). Consulta sus resultados antes de afirmar que la compatibilidad está validada. En Linux, WSL o Git Bash con Docker, curl, jq y openssl disponibles, se puede repetir la prueba con volúmenes desechables:
+
+```bash
+bash scripts/verificar-docker.sh moderna
+bash scripts/verificar-docker.sh universidad
+```
+
+Para comprobar las versiones antiguas realmente, ejecuta la segunda variante en un equipo que las tenga instaladas. La prueba comprueba conexión MySQL, JUnit, frontend, API y persistencia tras recrear contenedores.
+
+
 
 Usa un proyecto Compose desechable con puerto diferente al de la aplicación:
 
@@ -103,7 +159,7 @@ En Bash usa `export MYSQL_PORT=3307` y `unset MYSQL_PORT`. No ejecutes pruebas d
 
 ### 3.3. Backend (Spring Boot) fuera de Docker
 
-Primero ejecuta `docker compose up -d --wait mysql`. Exporta `DB_CLAVE` con el valor de `MYSQL_PASSWORD`; si cambiaste puerto, base o usuario ajusta `DB_URL` y `DB_USUARIO`.
+En la variante moderna, ejecuta `docker compose up -d --wait mysql`. En la universidad, ejecuta `docker compose -f compose.legacy.yaml up -d mysql` y verifica que el servicio esté saludable. Exporta `DB_CLAVE` con el valor de `MYSQL_PASSWORD`; si cambiaste puerto, base o usuario ajusta `DB_URL` y `DB_USUARIO`.
 
 
 El backend utiliza el Maven Wrapper integrado, por lo que **no requiere tener Maven instalado globalmente**.
