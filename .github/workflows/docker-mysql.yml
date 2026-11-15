@@ -1,0 +1,23 @@
+name: Docker y MySQL
+on:
+  push:
+    branches: ["Orlando/docker-mysql"]
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "compose.yaml"
+      - "backend/**"
+      - "frontend/**"
+      - "database/mysql/**"
+      - "scripts/verificar-docker.sh"
+      - ".github/workflows/docker-mysql.yml"
+permissions:
+  contents: read
+jobs:
+  integracion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probar Docker Compose y MySQL real
+        run: bash scripts/verificar-docker.sh
