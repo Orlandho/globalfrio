@@ -1,0 +1,89 @@
+# Universidad: objetivo Engine 27.2.0 / Compose 2.29.2.
+# Mismo código, inicialización y volumen; imágenes nombradas para traslado sin Internet.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Configura MSSQL_SA_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:${SQLSERVER_PORT:-1433}:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 10s
+      retries: 36
+      start_period: 30s
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Configura MSSQL_SA_PASSWORD en .env}
+      DB_CLAVE: ${DB_CLAVE:?Configura DB_CLAVE en .env}
+    volumes:
+      - ./database/docker:/init:ro
+    entrypoint: ["/bin/bash", "/init/inicializar.sh"]
+    restart: "no"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  backend:
+    image: globalfrio-backend:universidad
+    build:
+      context: ./backend
+    environment: &backend_env
+      SPRING_PROFILES_ACTIVE: sqlserver
+      DB_URL: "jdbc:sqlserver://sqlserver:1433;databaseName=globalfrio_db;encrypt=true;trustServerCertificate=true"
+      DB_USUARIO: globalfrio_backend
+      DB_CLAVE: ${DB_CLAVE:?Configura DB_CLAVE en .env}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/api/cotizador/catalogo"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+
+  frontend:
+    image: globalfrio-frontend:universidad
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/api/saludo"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  pruebas:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      target: build
+    environment: *backend_env
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    command: ["mvn", "-B", "test"]
+
+volumes:
+  sqlserver_data:

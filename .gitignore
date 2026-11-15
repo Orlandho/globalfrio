@@ -43,3 +43,9 @@ temp/
 
 # Credenciales locales de la base de datos (no se suben)
 backend/bd-local.properties
+
+# Credenciales locales Docker Compose y respaldo de imágenes
+.env
+.env.*
+!.env.example
+/globalfrio-universidad.tar

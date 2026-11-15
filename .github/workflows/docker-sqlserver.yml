@@ -1,0 +1,57 @@
+name: Docker y SQL Server
+on:
+  push:
+    branches: ["Orlando/docker-sqlserver"]
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "compose*.yaml"
+      - "backend/**"
+      - "frontend/**"
+      - "database/**"
+      - "scripts/**"
+      - ".github/workflows/docker-sqlserver.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integracion:
+    name: Integración - ${{ matrix.modo }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        modo: [moderna, universidad]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar Docker Engine de referencia
+        if: matrix.modo == 'universidad'
+        uses: docker/setup-docker-action@v5
+        with:
+          version: v27.2.0
+      - name: Configurar Compose 2.29.2
+        if: matrix.modo == 'universidad'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          plugins="${DOCKER_CONFIG:-$HOME/.docker}/cli-plugins"
+          mkdir -p "$plugins"
+          cd "$tmp"
+          url=https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-linux-x86_64
+          curl -fsSL "$url" -o docker-compose-linux-x86_64
+          curl -fsSL "$url.sha256" -o compose.sha256
+          awk '{print $1 "  docker-compose-linux-x86_64"}' compose.sha256 | sha256sum -c -
+          install -m 755 docker-compose-linux-x86_64 "$plugins/docker-compose"
+          test "$(docker version --format '{{.Server.Version}}')" = "27.2.0"
+          compose_version="$(docker compose version --short)"
+          test "${compose_version#v}" = "2.29.2"
+      - name: Configurar Buildx histórico
+        if: matrix.modo == 'universidad'
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.16.2
+          driver: docker
+      - name: Pruebas integrales SQL Server real
+        run: bash scripts/verificar-docker.sh "${{ matrix.modo }}"
