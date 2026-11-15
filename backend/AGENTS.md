@@ -1,5 +1,7 @@
 # AGENTS.md — Especificación Canónica y Directivas Técnicas del Backend (Spring Boot)
 
+> **Actualización de esta rama:** MySQL 8.4 mediante Docker Compose es la persistencia predeterminada y de pruebas. H2 ya no es una dependencia ni un perfil ejecutable. Las referencias históricas del curso y sus diagramas no alteran esta decisión. SQL Server se conserva como alternativa explícita. Docker se limita al empaquetado y la infraestructura; se mantiene la lista blanca para el código de aplicación.
+
 |Parámetro|Detalle|
 |-|-|
 |**Curso & Código**|Soluciones Web y Aplicaciones Distribuidas (SIST1402A) — 3 Créditos — Ciclo 8° / 9°|

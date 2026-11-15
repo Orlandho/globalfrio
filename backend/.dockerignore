@@ -1,0 +1,6 @@
+target
+.git
+bd-local.properties
+.env
+.env.*
+*.log

@@ -24,10 +24,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pruebas del cotizador sobre la base H2 del perfil dev (mismos datos que SQL Server).
+ * Pruebas del cotizador sobre la base MySQL real del perfil mysql.
  */
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("mysql")
 class CotizadorServiceTest {
 
     @Autowired

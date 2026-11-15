@@ -1,5 +1,5 @@
 -- =====================================================================
--- Global Frío - Datos iniciales para H2 (perfil "dev")
+-- Global Frío - Datos iniciales para MySQL 8.4 (volumen nuevo)
 -- Mismos datos de database/03_datos_iniciales.sql (SQL Server).
 -- Reales: equipos Gree 12 000 / 18 000 / 24 000 BTU, áreas 20/30/40 m2,
 -- precio S/ 1,250 del equipo de 12 000 BTU, servicios de la publicidad.

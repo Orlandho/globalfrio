@@ -26,17 +26,9 @@ Esta carpeta contiene el **modelo físico** de esa base, que es el último paso 
 
 ---
 
-## Opción rápida: sin instalar nada (H2, por defecto)
+## Opción predeterminada: MySQL 8.4 con Docker
 
-El backend trae una base de datos **H2 en memoria** con las mismas 6 tablas y los mismos datos (`src/main/resources/db/h2/`). Se crea sola al iniciar y se borra al detenerlo; **no se conecta a ningún SQL Server**.
-
-```powershell
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-- Para ver las tablas, abre http://localhost:8080/h2-console con JDBC URL `jdbc:h2:mem:globalfriodb`, usuario `sa` y contraseña vacía.
-- Para probar la conexión: `.\mvnw.cmd test -Dtest=ConexionBdTest`
+Desde la raíz, configura `.env` y ejecuta `docker compose up -d --wait mysql`. Los scripts `database/mysql/01_schema.sql` y `02_data.sql` crean las nueve tablas y cargan el catálogo una sola vez. Consulta la [guía de arranque y pruebas](../../README.md). SQL Server queda como alternativa explícita.
 
 ## Opción SQL Server
 
@@ -79,16 +71,10 @@ Estas variables duran mientras esa ventana de PowerShell esté abierta.
 En esa misma ventana:
 
 ```powershell
-.\mvnw.cmd test -Dtest=ConexionBdTest
+.\mvnw.cmd spring-boot:run
 ```
 
-Si todo está bien, verás `Tests run: 2, Failures: 0` y en la consola algo como:
-
-```
-Conectado a: Microsoft SQL Server ...
-Base de datos: globalfrio_db
-Registros en la tabla productos (equipos y servicios): 21
-```
+Consulta el catálogo en `http://localhost:8080/api/cotizador/catalogo`. Las pruebas automatizadas de esta rama se ejecutan exclusivamente con MySQL.
 
 Para levantar el backend conectado a SQL Server:
 

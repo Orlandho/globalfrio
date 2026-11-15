@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("dev") // estas pruebas usan H2 en memoria; la conexión a SQL Server se prueba en ConexionBdTest
+@ActiveProfiles("mysql")
 class GlobalfrioApplicationTests {
 
     @Autowired

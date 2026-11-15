@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Si algo falla, no debe quedar ninguna cotización a medio guardar.
  */
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("mysql")
 class TransaccionRollbackTest {
 
     @Autowired

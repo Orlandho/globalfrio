@@ -54,12 +54,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Controladores y Bases de Datos (H2, MySQL, SQL Server) -->
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>
+        <!-- Controladores de bases de datos relacionales (MySQL y SQL Server opcional) -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>

@@ -43,3 +43,8 @@ temp/
 
 # Credenciales locales de la base de datos (no se suben)
 backend/bd-local.properties
+
+# Credenciales Docker Compose (.env.example sí se versiona)
+.env
+.env.*
+!.env.example

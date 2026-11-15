@@ -33,7 +33,7 @@ globalfrio/
 │   │   ├── dto/                            <- DTOs estandarizados (ErrorResponseDto, SaludoResponseDto)
 │   │   └── exception/                      <- GlobalExceptionHandler (@RestControllerAdvice)
 │   └── src/main/resources/
-│       ├── application.properties          <- Configuración H2 en memoria, MySQL/SQL Server, JWT, Swagger
+│       ├── application.properties          <- Configuración MySQL (predeterminado) / SQL Server opcional, JWT, Swagger
 │       └── templates/                      <- Plantilla Thymeleaf para contraste server-side vs REST
 │
 └── frontend/                               <- Proyecto Frontend (Angular 18 SPA + TypeScript + SASS)
@@ -68,17 +68,49 @@ Para garantizar la autonomía modular y el cumplimiento de la lista blanca técn
 
 ## 3. Instrucciones de Arranque y Ejecución
 
-### 3.1. Backend (Spring Boot)
+### 3.1. Arranque completo con Docker Compose (recomendado)
+
+Requiere Docker Desktop con contenedores Linux o Docker Engine con Compose v2.
+
+Copia `.env.example` a `.env` (PowerShell: `Copy-Item .env.example .env`; Linux/macOS: `cp .env.example .env`). Edita `.env` y asigna contraseñas fuertes y distintas a `MYSQL_ROOT_PASSWORD` y `MYSQL_PASSWORD`.
+
+```bash
+docker compose config --quiet
+docker compose up -d --build --wait
+docker compose ps
+```
+
+- Angular: http://localhost:4200 (proxy /api del mismo origen).
+- Backend: http://localhost:8080/api/saludo y http://localhost:8080/swagger-ui/index.html.
+- MySQL 8.4: puerto local 3306, base y usuario de .env.
+- Consulta SQL: `docker compose exec mysql mysql -u globalfrio_backend -p globalfrio_db -e "SELECT * FROM productos;"`.
+
+`docker compose down` conserva el volumen. **No uses `down -v` sobre datos de trabajo**. Los scripts de `database/mysql/` se aplican solo en un volumen nuevo. Hibernate valida el esquema. No se trasladan automáticamente datos de SQL Server.
+
+### 3.2. Pruebas de integración (MySQL real)
+
+Usa un proyecto Compose desechable con puerto diferente al de la aplicación:
+
+```powershell
+$env:MYSQL_PORT = "3307"
+docker compose -p globalfrio-test up -d --wait mysql
+docker compose -p globalfrio-test --profile test run --rm --build pruebas
+docker compose -p globalfrio-test --profile test down -v
+Remove-Item Env:MYSQL_PORT
+```
+
+En Bash usa `export MYSQL_PORT=3307` y `unset MYSQL_PORT`. No ejecutes pruebas de escritura sobre la base de trabajo. JDBC comprueba que el motor es MySQL; las pruebas existentes verifican catálogo, guardado y rollback.
+
+### 3.3. Backend (Spring Boot) fuera de Docker
+
+Primero ejecuta `docker compose up -d --wait mysql`. Exporta `DB_CLAVE` con el valor de `MYSQL_PASSWORD`; si cambiaste puerto, base o usuario ajusta `DB_URL` y `DB_USUARIO`.
+
 
 El backend utiliza el Maven Wrapper integrado, por lo que **no requiere tener Maven instalado globalmente**.
 
 ```bash
 # Navegar a la carpeta backend
 cd backend
-
-# Ejecutar las pruebas unitarias y de integración
-./mvnw clean test         # En Linux/macOS
-.\mvnw.cmd clean test     # En Windows PowerShell
 
 # Iniciar el servidor en modo desarrollo (puerto 8080)
 ./mvnw spring-boot:run    # En Linux/macOS
@@ -87,20 +119,20 @@ cd backend
 
 * **Endpoint de prueba (Semana 01):** `http://localhost:8080/api/saludo`
 * **Swagger UI interactivo:** `http://localhost:8080/swagger-ui/index.html`
-* **Consola H2 Database:** `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:globalfriodb`, Usuario: `sa`, Contraseña: vacía)
 * **Vista tradicional Thymeleaf:** `http://localhost:8080/`
 
 ---
 
-### 3.2. Frontend (Angular SPA)
+### 3.4. Frontend (Angular SPA)
 
-El frontend contiene todas las dependencias instaladas en `frontend/node_modules/`.
+Instala las dependencias con `npm ci` antes de iniciar el frontend.
 
 ```bash
 # Navegar a la carpeta frontend
 cd frontend
 
 # Iniciar el servidor de desarrollo Angular (puerto 4200)
+npm ci
 npm start
 # o
 npx ng serve -o

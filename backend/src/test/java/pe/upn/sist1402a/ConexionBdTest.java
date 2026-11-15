@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import pe.upn.sist1402a.entity.Producto;
 import pe.upn.sist1402a.repository.ProductoRepository;
 
@@ -12,16 +13,13 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Prueba de integración: verifica la conexión con la base de datos del perfil activo.
- * - Perfil sqlserver (por defecto): requiere SQL Server Express con database/BD_GLOBALFRIO.sql
- *   y database/USUARIO_BACKEND.sql ejecutados, y backend/bd-local.properties con la contraseña.
- * - Perfil dev: H2 en memoria, no requiere instalar nada.
- */
+/** Prueba de integración contra MySQL real, sin sustitutos en memoria. */
 @SpringBootTest
+@ActiveProfiles("mysql")
 class ConexionBdTest {
 
     @Autowired
@@ -38,13 +36,14 @@ class ConexionBdTest {
             System.out.println("Conectado a: " + meta.getDatabaseProductName() + " " + meta.getDatabaseProductVersion());
             System.out.println("Base de datos: " + conexion.getCatalog());
 
+            assertEquals("MySQL", meta.getDatabaseProductName());
             assertTrue(conexion.isValid(2), "La conexión no es válida");
         }
     }
 
     @Test
     @DisplayName("La entidad Producto lee el catálogo de equipos desde la tabla productos (RF01)")
-    void leerCatalogoDesdeSqlServer() {
+    void leerCatalogoDesdeMysql() {
         long total = productoRepository.count();
         System.out.println("Registros en la tabla productos (equipos y servicios): " + total);
 
