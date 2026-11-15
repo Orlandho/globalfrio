@@ -26,21 +26,13 @@ Esta carpeta contiene el **modelo físico** de esa base, que es el último paso 
 
 ---
 
-## Opción rápida: sin instalar nada (H2, por defecto)
+## Opción predeterminada: SQL Server Express con Docker
 
-El backend trae una base de datos **H2 en memoria** con las mismas 6 tablas y los mismos datos (`src/main/resources/db/h2/`). Se crea sola al iniciar y se borra al detenerlo; **no se conecta a ningún SQL Server**.
+Consulta [README](../../README.md) para preparar .env, iniciar los tres servicios y verificar las pruebas. El servicio db-init utiliza una adaptación no destructiva del esquema completo original (nueve tablas).
 
-```powershell
-cd backend
-.\mvnw.cmd spring-boot:run
-```
+## Opción SQL Server instalada localmente
 
-- Para ver las tablas, abre http://localhost:8080/h2-console con JDBC URL `jdbc:h2:mem:globalfriodb`, usuario `sa` y contraseña vacía.
-- Para probar la conexión: `.\mvnw.cmd test -Dtest=ConexionBdTest`
-
-## Opción SQL Server
-
-Para usar SQL Server, ejecuta los pasos siguientes y activa el perfil `sqlserver` antes de iniciar el backend:
+Para usar una instancia instalada localmente, sigue los pasos siguientes. El perfil sqlserver es predeterminado. **Los scripts manuales de creación pueden borrar tablas existentes: no los ejecutes sobre datos de trabajo.**
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "sqlserver"

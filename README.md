@@ -33,7 +33,7 @@ globalfrio/
 │   │   ├── dto/                            <- DTOs estandarizados (ErrorResponseDto, SaludoResponseDto)
 │   │   └── exception/                      <- GlobalExceptionHandler (@RestControllerAdvice)
 │   └── src/main/resources/
-│       ├── application.properties          <- Configuración H2 en memoria, MySQL/SQL Server, JWT, Swagger
+│       ├── application.properties          <- Configuración SQL Server, JWT, Swagger
 │       └── templates/                      <- Plantilla Thymeleaf para contraste server-side vs REST
 │
 └── frontend/                               <- Proyecto Frontend (Angular 18 SPA + TypeScript + SASS)
@@ -66,55 +66,122 @@ Para garantizar la autonomía modular y el cumplimiento de la lista blanca técn
 
 ---
 
-## 3. Instrucciones de Arranque y Ejecución
+## 3. Instrucciones de arranque y ejecución
 
-### 3.1. Backend (Spring Boot)
+El motor único de persistencia es **Microsoft SQL Server 2022 Express (16.x)**. Docker ejecuta Angular, Spring Boot y SQL Server en contenedores independientes. El servicio auxiliar `db-init` utiliza el modelo y los datos del script original con inicialización no destructiva; termina con código 0 y no es un servidor permanente.
 
-El backend utiliza el Maven Wrapper integrado, por lo que **no requiere tener Maven instalado globalmente**.
+| Archivo | Cuándo utilizarlo | Referencia |
+|---|---|---|
+| `compose.yaml` | Computadora personal, desarrollo diario y pruebas habituales. | Docker Engine y Compose v2 actualizados. |
+| `compose.legacy.yaml` | Computadoras de la universidad, laboratorio, sustentación o contingencia. | Docker Desktop 4.34.0 / Engine 27.2.0 / Compose 2.29.2 (objetivo sujeto a pruebas). |
+
+No hay que degradar Docker en equipos actualizados. Ambas configuraciones utilizan el mismo código, SQL Server, puertos y volumen. Requieren contenedores Linux en un equipo x86-64/amd64 y al menos 2 GB de memoria para el motor; se recomienda asignar al menos 4 GB a Docker para el conjunto y más durante la compilación. No se garantiza compatibilidad con Compose v1 ni con equipos ARM.
+
+### 3.1. Configurar credenciales locales
+
+En la raíz, copia `.env.example` a `.env`:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Asigna dos claves fuertes y distintas, con mayúsculas, minúsculas, números y símbolos. Para `DB_CLAVE` se admiten 12-128 caracteres: letras, números y símbolos `_!@%+=.-` (sin espacios, comillas ni dólar), por seguridad de la sustitución de sqlcmd. Si cambias las claves de una instancia ya inicializada, debes rotarlas también en SQL Server; editar .env no cambia las credenciales persistentes.
+
+`sa` solo se utiliza para inicialización y diagnóstico; Spring Boot utiliza `globalfrio_backend` con permisos de lectura y escritura, no DDL. No subas .env a Git. Acepta las condiciones de licencia de Microsoft antes del arranque; Compose fija ACCEPT_EULA=Y.
+
+### 3.2. Computadora personal (desarrollo)
+
+```powershell
+docker compose config --quiet
+docker compose up -d --build --wait
+docker compose ps -a
+```
+
+### 3.3. Computadora de la universidad (laboratorio o sustentación)
+
+```powershell
+docker version
+docker compose version
+docker compose -f compose.legacy.yaml config --quiet
+docker compose -f compose.legacy.yaml up -d --build
+docker compose -f compose.legacy.yaml ps -a
+```
+
+Comprueba que sqlserver, backend y frontend estén saludables y que db-init haya terminado con código 0. Para diagnosticar errores: `docker compose -f compose.legacy.yaml logs --tail 100`.
+
+| Servicio | Dirección |
+|---|---|
+| Frontend | http://localhost:4200 |
+| Backend | http://localhost:8080/api/saludo |
+| Swagger | http://localhost:8080/swagger-ui/index.html |
+| SQL Server | localhost,1433; base globalfrio_db; usuario globalfrio_backend |
+
+Consulta SQL real con SSMS o sqlcmd. Ejemplo usando la variante moderna (solicita la contraseña):
+
+```powershell
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U globalfrio_backend -C -d globalfrio_db
+```
+
+```sql
+SELECT * FROM productos;
+SELECT * FROM cotizacion;
+GO
+```
+
+Para detener el programa: `docker compose down` (o el mismo comando con `-f compose.legacy.yaml`). El volumen `sqlserver_data` conserva los datos; no uses `down -v` con datos de trabajo. Ambas variantes comparten el volumen si se ejecutan desde la misma carpeta con el mismo nombre de proyecto; detén una antes de iniciar la otra. Si tienes un SQL Server instalado localmente y ocupa el puerto 1433, cambia `SQLSERVER_PORT` en .env (el contenedor conserva el 1433 interno).
+
+### 3.4. Contingencia sin Internet
+
+En tu computadora con Internet y .env configurado:
+
+```powershell
+docker compose -f compose.legacy.yaml pull sqlserver db-init
+docker compose -f compose.legacy.yaml build backend frontend
+docker image save -o globalfrio-universidad.tar mcr.microsoft.com/mssql/server:2022-latest globalfrio-backend:universidad globalfrio-frontend:universidad
+```
+
+Lleva el TAR y una copia del repositorio (sin tus credenciales). En la universidad, configura un .env propio:
+
+```powershell
+docker image load -i globalfrio-universidad.tar
+docker compose -f compose.legacy.yaml up -d --no-build --pull never
+docker compose -f compose.legacy.yaml ps -a
+```
+
+El TAR no contiene los datos persistentes de una base previa: se crea una nueva con los datos iniciales. Para trasladar cotizaciones exporta un respaldo de SQL Server aparte. Prueba el procedimiento antes de la sustentación.
+
+### 3.5. Pruebas de integración y persistencia
+
+GitHub Actions configura dos entornos: versiones actuales y Engine 27.2.0 / Compose 2.29.2 / Buildx 0.16.2. En Linux, WSL o Git Bash con Docker, jq, curl y openssl disponibles:
 
 ```bash
-# Navegar a la carpeta backend
+bash scripts/verificar-docker.sh moderna
+bash scripts/verificar-docker.sh universidad
+```
+
+Cada ejecución usa credenciales y volúmenes desechables aislados. Comprueba SQL Server por JDBC, ejecuta JUnit (catálogo, cotizaciones y rollback), verifica la API y el frontend y guarda una cotización que debe sobrevivir a la recreación de contenedores. Consulta los resultados del workflow antes de afirmar la compatibilidad real. No ejecutes las pruebas de escritura contra tu base de trabajo.
+
+### 3.6. Ejecución nativa con SQL Server
+
+Para utilizar una instancia SQL Server existente sin Docker, configura TCP/IP y la base `globalfrio_db` siguiendo [la guía de BD](backend/database/LEEME_BD.md). El script manual [BD_GLOBALFRIO.sql](database/BD_GLOBALFRIO.sql) borra y recrea tablas: no lo ejecutes contra una base con datos de trabajo. El backend valida el esquema, no lo crea ni modifica. No se migran datos externos automáticamente al volumen Docker.
+
+En PowerShell, exporta DB_CLAVE y, si corresponde, DB_URL o DB_USUARIO (también puedes usar backend/bd-local.properties). Después ejecuta:
+
+```powershell
 cd backend
-
-# Ejecutar las pruebas unitarias y de integración
-./mvnw clean test         # En Linux/macOS
-.\mvnw.cmd clean test     # En Windows PowerShell
-
-# Iniciar el servidor en modo desarrollo (puerto 8080)
-./mvnw spring-boot:run    # En Linux/macOS
-.\mvnw.cmd spring-boot:run # En Windows PowerShell
+.\mvnw.cmd spring-boot:run
 ```
 
-* **Endpoint de prueba (Semana 01):** `http://localhost:8080/api/saludo`
-* **Swagger UI interactivo:** `http://localhost:8080/swagger-ui/index.html`
-* **Consola H2 Database:** `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:globalfriodb`, Usuario: `sa`, Contraseña: vacía)
-* **Vista tradicional Thymeleaf:** `http://localhost:8080/`
+En otra terminal, desde la raíz:
 
----
-
-### 3.2. Frontend (Angular SPA)
-
-El frontend contiene todas las dependencias instaladas en `frontend/node_modules/`.
-
-```bash
-# Navegar a la carpeta frontend
+```powershell
 cd frontend
-
-# Iniciar el servidor de desarrollo Angular (puerto 4200)
+npm ci
 npm start
-# o
-npx ng serve -o
-
-# Compilar para producción
-npm run build
 ```
 
-La aplicación se abrirá automáticamente en `http://localhost:4200/` con:
-* Barra de navegación adaptativa con alternador de tema claro/oscuro (persistente en `localStorage`).
-* Sección Hero con métricas de servicio y marco técnico blueprint.
-* Catálogo de servicios HVAC de Global Frío y galería de trabajos reales.
-* Checklist semestral de mantenimiento preventivo.
-* Ubicación de base operativa en Ventanilla con mapa interactivo y modal accesible de contacto directo.
+El frontend de desarrollo mantiene la URL localhost:8080/api; la compilación de producción en Docker usa /api con Nginx.
 
 ---
 

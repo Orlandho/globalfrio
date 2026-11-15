@@ -1,5 +1,7 @@
 # AGENTS.md — Especificación Canónica y Lista Blanca Técnica del Sistema
 
+> **Actualización de la rama:** SQL Server 2022 Express es el único motor ejecutable de Global Frío. Docker Compose empaqueta frontend, backend y BD, conservando la arquitectura N-capas. Las tecnologías de base de datos mencionadas históricamente en el sílabo no son alternativas activas del proyecto. Se mantienen las restricciones de programación del curso.
+
 |Parámetro|Detalle|
 |-|-|
 |**Curso \& Código**|Soluciones Web y Aplicaciones Distribuidas (SIST1402A) — 3 Créditos — Ciclo 8° / 9°|
@@ -50,8 +52,6 @@ Ninguna tecnología, framework, librería, dependencia, anotación o práctica d
 * `org.springframework.boot:spring-boot-starter-thymeleaf` (Vistas de servidor en `resources/templates/`)
 * `org.springframework.boot:spring-boot-devtools` (Recarga en caliente para desarrollo)
 * `org.springframework.boot:spring-boot-starter-data-jpa` (Hibernate, JPA, EntityManager)
-* `com.h2database:h2` (Base de datos en memoria para pruebas locales)
-* `com.mysql:mysql-connector-j` (Driver oficial para MySQL Server)
 * `com.microsoft.sqlserver:mssql-jdbc` (Driver oficial para SQL Server)
 * `org.springframework.boot:spring-boot-starter-validation` (Bean Validation API)
 * `org.springframework.boot:spring-boot-starter-security` (Filtros de seguridad y autenticación)
