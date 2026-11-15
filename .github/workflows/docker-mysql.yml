@@ -1,23 +1,57 @@
 name: Docker y MySQL
 on:
   push:
-    branches: ["Orlando/docker-mysql"]
+    branches: ["Orlando/docker-mysql", "Orlando/docker-compatibilidad-universidad"]
   pull_request:
     branches: ["main"]
     paths:
       - "compose.yaml"
+      - "compose.legacy.yaml"
       - "backend/**"
       - "frontend/**"
       - "database/mysql/**"
       - "scripts/verificar-docker.sh"
       - ".github/workflows/docker-mysql.yml"
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   integracion:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    name: Integración - ${{ matrix.modo }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        modo: [moderna, universidad]
     steps:
       - uses: actions/checkout@v4
+      - name: Instalar Docker Engine de referencia universitaria
+        if: matrix.modo == 'universidad'
+        uses: docker/setup-docker-action@v5
+        with:
+          version: v27.2.0
+      - name: Instalar Compose y Buildx de referencia universitaria
+        if: matrix.modo == 'universidad'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          plugins="${DOCKER_CONFIG:-$HOME/.docker}/cli-plugins"
+          mkdir -p "$plugins"
+          cd "$tmp"
+          compose_url=https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-linux-x86_64
+          curl -fsSL "$compose_url" -o docker-compose-linux-x86_64
+          curl -fsSL "$compose_url.sha256" -o compose.sha256
+          sha256sum -c compose.sha256
+          install -m 755 docker-compose-linux-x86_64 "$plugins/docker-compose"
+          buildx_url=https://github.com/docker/buildx/releases/download/v0.16.2
+          curl -fsSL "$buildx_url/buildx-v0.16.2.linux-amd64" -o buildx-v0.16.2.linux-amd64
+          curl -fsSL "$buildx_url/checksums.txt" -o buildx-checksums.txt
+          grep -E '[ *]buildx-v0.16.2.linux-amd64$' buildx-checksums.txt | sha256sum -c -
+          install -m 755 buildx-v0.16.2.linux-amd64 "$plugins/docker-buildx"
+          test "$(docker version --format '{{.Server.Version}}')" = "27.2.0"
+          test "$(docker compose version --short)" = "2.29.2"
+          docker buildx version
       - name: Probar Docker Compose y MySQL real
-        run: bash scripts/verificar-docker.sh
+        run: bash scripts/verificar-docker.sh "${{ matrix.modo }}"
