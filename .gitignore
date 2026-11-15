@@ -48,3 +48,6 @@ backend/bd-local.properties
 .env
 .env.*
 !.env.example
+
+# Paquete local de imágenes para la universidad
+/globalfrio-universidad.tar
