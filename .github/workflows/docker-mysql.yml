@@ -43,15 +43,16 @@ jobs:
           compose_url=https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-linux-x86_64
           curl -fsSL "$compose_url" -o docker-compose-linux-x86_64
           curl -fsSL "$compose_url.sha256" -o compose.sha256
-          sha256sum -c compose.sha256
+          awk '{print $1 "  docker-compose-linux-x86_64"}' compose.sha256 | sha256sum -c -
           install -m 755 docker-compose-linux-x86_64 "$plugins/docker-compose"
           buildx_url=https://github.com/docker/buildx/releases/download/v0.16.2
           curl -fsSL "$buildx_url/buildx-v0.16.2.linux-amd64" -o buildx-v0.16.2.linux-amd64
-          curl -fsSL "$buildx_url/checksums.txt" -o buildx-checksums.txt
-          grep -E '[ *]buildx-v0.16.2.linux-amd64$' buildx-checksums.txt | sha256sum -c -
+          # SHA256 de la imagen oficial docker:25-cli para Buildx 0.16.2 amd64.
+          echo "43e4c928a0be38ab34e206c82957edfdd54f3e7124f1dadd7779591c3acf77ea  buildx-v0.16.2.linux-amd64" | sha256sum -c -
           install -m 755 buildx-v0.16.2.linux-amd64 "$plugins/docker-buildx"
           test "$(docker version --format '{{.Server.Version}}')" = "27.2.0"
-          test "$(docker compose version --short)" = "2.29.2"
+          compose_version="$(docker compose version --short)"
+          test "${compose_version#v}" = "2.29.2"
           docker buildx version
       - name: Probar Docker Compose y MySQL real
         run: bash scripts/verificar-docker.sh "${{ matrix.modo }}"
