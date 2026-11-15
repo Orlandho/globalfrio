@@ -3,6 +3,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+modo="${1:-moderna}"
+case "$modo" in
+    moderna) archivo=compose.yaml ;;
+    universidad) archivo=compose.legacy.yaml ;;
+    *) echo "Uso: bash scripts/verificar-docker.sh [moderna|universidad]" >&2; exit 2 ;;
+esac
+
 # Credenciales y nombres exclusivos de esta ejecución; no utiliza el volumen de trabajo.
 export MYSQL_ROOT_PASSWORD="$(openssl rand -hex 24)"
 export MYSQL_PASSWORD="$(openssl rand -hex 24)"
@@ -11,7 +18,37 @@ export MYSQL_PORT="${QA_MYSQL_PORT:-13306}"
 export BACKEND_PORT="${QA_BACKEND_PORT:-18080}"
 export FRONTEND_PORT="${QA_FRONTEND_PORT:-14200}"
 project="globalfrio-qa-$(openssl rand -hex 6)"
-dc() { docker compose -p "$project" "$@"; }
+dc() { docker compose -f "$archivo" -p "$project" "$@"; }
+esperar_salud() {
+    local servicio="$1" id estado intento
+    for ((intento=0; intento<120; intento++)); do
+        id="$(dc ps -q "$servicio")"
+        if [ -n "$id" ]; then
+            estado="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id")"
+            if [ "$estado" = healthy ]; then return 0; fi
+            if [ "$estado" = unhealthy ]; then
+                echo "Servicio no saludable: $servicio" >&2
+                return 1
+            fi
+        fi
+        sleep 2
+    done
+    echo "Tiempo agotado esperando a $servicio" >&2
+    return 1
+}
+# La variante de aula evita depender de los flags de espera de Compose.
+arrancar() {
+    if [ "$modo" = moderna ]; then
+        dc up -d --wait --wait-timeout 240 "$@"
+    else
+        dc up -d "$@"
+        esperar_salud mysql
+        if [ "${1:-}" != mysql ]; then
+            esperar_salud backend
+            esperar_salud frontend
+        fi
+    fi
+}
 cleanup() {
     rc=$?
     if [ "$rc" -ne 0 ]; then dc logs --no-color || true; fi
@@ -20,16 +57,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
+docker version
 docker compose version
 dc config --quiet
 
 # Base inicializada desde los SQL reales. JUnit comprueba motor, catálogo y rollback.
-dc up -d --wait --wait-timeout 240 mysql
+arrancar mysql
 dc --profile test run --rm --build pruebas
 dc --profile test down -v
 
 # Arranque de los tres servicios desde un volumen limpio.
-dc up -d --build --wait --wait-timeout 240
+arrancar --build
 url="http://127.0.0.1:$FRONTEND_PORT"
 curl -fsS "$url/" | grep -q '<app-root'
 test "$(curl -fsS "$url/api/saludo")" = "Backend activo"
@@ -43,6 +81,6 @@ codigo="$(curl -fsS -H 'Content-Type: application/json' -d "$payload" "$url/api/
 
 # El registro debe sobrevivir a la eliminación y recreación de contenedores.
 dc down
-dc up -d --wait --wait-timeout 240
+arrancar
 curl -fsS "$url/api/cotizador/cotizaciones/$codigo" | jq -e --arg codigo "$codigo" '.codigo == $codigo and (.lineas | length) == 1'
-echo "OK: MySQL real, API, frontend, transacciones y persistencia tras recrear contenedores."
+echo "OK ($modo): MySQL real, API, frontend, transacciones y persistencia tras recrear contenedores."
