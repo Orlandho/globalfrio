@@ -4,7 +4,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY angular.json tsconfig.json tsconfig.app.json ./
 COPY src ./src
-RUN npm run build -- --configuration production
+# La instalación de dependencias puede necesitar red; compilar Angular no.
+RUN --network=none npm run build -- --configuration production
 
 FROM nginx:stable-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf

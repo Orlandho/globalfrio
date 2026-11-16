@@ -149,11 +149,13 @@ docker compose -f compose.legacy.yaml up -d --no-build --pull never
 docker compose -f compose.legacy.yaml ps -a
 ```
 
+El frontend incluye localmente Plus Jakarta Sans y Material Icons con sus licencias. La fase de compilación Angular del Dockerfile se ejecuta sin red; obtener las imágenes base y ejecutar `npm ci` o descargar dependencias Maven durante una reconstrucción puede seguir requiriendo Internet. Los mapas o enlaces externos conservan sus propios requisitos de conectividad.
+
 El TAR no contiene los datos persistentes de una base previa: se crea una nueva con los datos iniciales. Para trasladar cotizaciones exporta un respaldo de SQL Server aparte. Prueba el procedimiento antes de la sustentación.
 
 ### 3.5. Pruebas de integración y persistencia
 
-GitHub Actions configura dos entornos: versiones actuales y Engine 27.2.0 / Compose 2.29.2 / Buildx 0.16.2. En Linux, WSL o Git Bash con Docker, jq, curl y openssl disponibles:
+GitHub Actions configura dos entornos: versiones actuales y Engine 27.2.0 / Compose 2.29.2 / Buildx 0.16.2. En Linux, WSL o Git Bash con Docker, Git, curl y openssl disponibles (no requiere jq ni Node.js en el host; utiliza Node 22 dentro de un contenedor sin red para validar JSON):
 
 ```bash
 bash scripts/verificar-docker.sh moderna
